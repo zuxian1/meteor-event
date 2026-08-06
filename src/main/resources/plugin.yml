@@ -1,0 +1,29 @@
+name: MeteorEvent
+version: '${project.version}'
+main: com.example.meteorevent.MeteorEventPlugin
+api-version: '1.21'
+author: YourName
+description: >
+  Haritanin rastgele bir noktasina gokyuzunden devasa bir magma bloğu
+  (Display Entity) dusuren, oyuncu kamerasini meteora kilitleyen ve
+  carpisma aninda gercekci enkaz sacilimi yapan sinematik meteor eklentisi.
+
+commands:
+  meteor:
+    description: Meteor etkinligini baslatir/durdurur.
+    usage: |
+      /meteor start [x] [z]  - Belirtilen (veya rastgele) koordinata meteor dusurur.
+      /meteor stop           - Aktif tum meteor etkinliklerini iptal eder.
+      /meteor reload         - config.yml dosyasini yeniden yukler.
+    permission: meteorevent.command
+    permission-message: Bu komutu kullanma yetkin yok.
+
+permissions:
+  meteorevent.command:
+    description: /meteor komutunu kullanma izni.
+    default: op
+  meteorevent.admin:
+    description: Tum meteor eklentisi yetkileri.
+    default: op
+    children:
+      meteorevent.command: true

@@ -1,0 +1,77 @@
+# =====================================================
+#   MeteorEvent - Konfigurasyon
+# =====================================================
+
+event:
+  # Otomatik tetikleme araligi (dakika). 0 = otomatik tetikleme kapali,
+  # sadece /meteor start komutuyla baslatilir.
+  auto-interval-minutes: 30
+
+  # Etkinligin gerceklesecegi dunyalar. Bos birakilirsa tum dunyalarda calisir.
+  worlds:
+    - world
+
+  # Otomatik tetiklemede spawn/merkez noktasindan maksimum uzaklik (blok).
+  auto-max-radius: 500
+
+fall:
+  # Meteorun dusmeye basladigi, en yuksek blogun kac blok ustunde spawn olacagi.
+  spawn-height-above-ground: 140
+
+  # Meteorun havada kalacagi sure (tick). 20 tick = 1 saniye.
+  duration-ticks: 100
+
+  # Client-side yumusak interpolasyon icin, her kac tick'te bir konum guncellensin.
+  # Dusuk deger = daha akici ama daha fazla paket; 2-4 arasi onerilir.
+  interpolation-step-ticks: 2
+
+  # Magma blogunun kac kat buyutulecegi (15-20 arasi rastgele secilir).
+  size-multiplier-min: 15.0
+  size-multiplier-max: 20.0
+
+  # Dusarken meteorun kendi ekseninde donme hizi (radyan/tick). 0 = donme yok.
+  spin-speed: 0.05
+
+camera:
+  # Oyuncu hareketini dondurup kamerayi meteora kilitleyen mekanik acik mi?
+  enabled: true
+
+  # Merkezden itibaren hangi yaricap icindeki oyuncular etkilensin (blok).
+  radius: 60
+
+  # Donusun ne kadar once (impact'ten kac tick once) serbest birakilsin.
+  release-before-impact-ticks: 5
+
+impact:
+  # Gercek dunya patlamasi olussun mu (world.createExplosion)?
+  create-explosion: false
+  explosion-power: 0.0
+  explosion-set-fire: false
+  explosion-break-blocks: false
+
+  # Carpisma parcaciklari ve sesi.
+  particle-count: 4
+  sound-volume: 3.0
+  sound-pitch: 0.8
+
+debris:
+  # Carpisma merkezinden disariya sacilan tas/lav parcasi sayisi.
+  count: 60
+
+  # Parcaciklarin baslangic hizi araligi (blok/tick).
+  min-speed: 0.4
+  max-speed: 1.4
+
+  # Enkazin havada kalma suresi (tick), bu sureden sonra kaybolur.
+  # Boylece gercek bloklar dunyaya yerlesmez (surviv sunucularda griefsiz).
+  lifetime-ticks: 60
+
+  # true olursa enkaz bloklari gercekten yere duser ve kalici olur (grief riski!).
+  place-blocks: false
+
+  # Enkaz olarak kullanilacak blok turleri (rastgele secilir).
+  materials:
+    - STONE
+    - COBBLESTONE
+    - MAGMA_BLOCK
+    - BASALT
