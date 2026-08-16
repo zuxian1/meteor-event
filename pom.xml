@@ -1,27 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
     <artifactId>meteor-event</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-        <!--
-             NOT: Paper 26.2, Mojang'ın "Minecraft 26.2" takvim sürümüne karşılık gelir,
-             fakat PaperMC'nin Maven deposundaki artifact'lar hâlâ dahili Mojang protokol
-             sürüm numarasını kullanır (ör. 1.21.x - R0.1-SNAPSHOT). Sunucunda hangi paper-api
-             sürümünün yayınlandığını https://repo.papermc.io/service/rest/repository/browse/maven-public/io/papermc/paper/paper-api/
-             adresinden kontrol edip aşağıdaki <paper.version> değerini güncel tut.
-        -->
-        <paper.version>1.21.10-R0.1-SNAPSHOT</paper.version>
+        <paper.version>[26.2.build,)</paper.version>
     </properties>
 
     <repositories>
@@ -53,7 +44,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.14.0</version>
+                <configuration>
+                    <release>25</release>
+                </configuration>
             </plugin>
         </plugins>
     </build>
