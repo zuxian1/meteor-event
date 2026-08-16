@@ -1,10 +1,10 @@
 name: MeteorEvent
 version: '${project.version}'
 main: com.example.meteorevent.MeteorEventPlugin
-api-version: '1.21'
+api-version: '26.2'
 author: YourName
 description: >
-  Haritanin rastgele bir noktasina gokyuzunden devasa bir magma bloğu
+  Haritanin rastgele bir noktasina gokyuzunden devasa bir magma blogu
   (Display Entity) dusuren, oyuncu kamerasini meteora kilitleyen ve
   carpisma aninda gercekci enkaz sacilimi yapan sinematik meteor eklentisi.
 
