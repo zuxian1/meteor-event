@@ -23,14 +23,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Tek bir meteor dususunu bastan sona yoneten gorev:
- *  1) Buyutulmus bir BlockDisplay (magma_block) spawn eder.
- *  2) Her tick, spawn -> impact arasinda konumu enterpole eder (client-side
- *     yumusak gecis icin setTeleportDuration/setInterpolationDuration kullanir).
- *  3) Yaricap icindeki oyunculari "dondurup" kameralarini meteora kilitler.
- *  4) Yere carpinca display'i kaldirir, patlama efekti + enkaz sacilimi yapar.
- */
 public class MeteorTask extends BukkitRunnable {
 
     private final MeteorEventPlugin plugin;
@@ -47,14 +39,11 @@ public class MeteorTask extends BukkitRunnable {
 
     private int elapsedTicks = 0;
     private float currentSpinAngle = 0f;
-
-    /** Bu gorevin dondurdugu oyuncular; impact/iptal aninda hepsi serbest birakilir. */
     private final Set<UUID> managedFrozen = new HashSet<>();
-
     private boolean impacted = false;
 
     public MeteorTask(MeteorEventPlugin plugin, MeteorManager manager, EventSettings settings,
-                       Location spawnLocation, Location impactLocation) {
+                      Location spawnLocation, Location impactLocation) {
         this.plugin = plugin;
         this.manager = manager;
         this.settings = settings;
@@ -71,49 +60,36 @@ public class MeteorTask extends BukkitRunnable {
     }
 
     private BlockDisplay spawnDisplay() {
-        BlockDisplay entity = spawnLocation.getWorld().spawn(spawnLocation, BlockDisplay.class, e -> {
+        return spawnLocation.getWorld().spawn(spawnLocation, BlockDisplay.class, e -> {
             e.setBlock(Material.MAGMA_BLOCK.createBlockData());
             e.setBillboard(Display.Billboard.FIXED);
             e.setShadowRadius(4.0f);
             e.setShadowStrength(1.0f);
-            e.setBrightness(new Display.Brightness(15, 15)); // gokten dusen kor magma - tam parlak
-
+            e.setBrightness(new Display.Brightness(15, 15));
             e.setTeleportDuration(stepTicks);
             e.setInterpolationDuration(stepTicks);
             e.setInterpolationDelay(0);
-
             e.setTransformation(buildTransformation(0f));
         });
-        return entity;
     }
 
-    /**
-     * Blogun (varsayilan 1x1x1) merkez etrafinda buyutulmesini ve donmesini
-     * saglayan Transformation matrisini kurar.
-     */
     private Transformation buildTransformation(float spinAngle) {
-        // Blok orijini (0,0,0)-(1,1,1) oldugu icin, buyutulmus haliyle merkezi
-        // sabit tutmak icin -( (scale-1) / 2 ) kadar geri kaydiriyoruz.
         float offset = -(sizeMultiplier - 1f) / 2f;
         Vector3f translation = new Vector3f(offset, offset, offset);
         Vector3f scale = new Vector3f(sizeMultiplier, sizeMultiplier, sizeMultiplier);
-
         Quaternionf spin = new Quaternionf(new AxisAngle4f(spinAngle, 0.3f, 1f, 0.15f));
-
         return new Transformation(translation, spin, scale, new Quaternionf());
     }
 
     @Override
     public void run() {
         if (impacted) {
-            // guvenlik: gorev bir sekilde tekrar tetiklenirse hicbir sey yapma
             cancel();
             return;
         }
 
         elapsedTicks++;
 
-        // --- Konum enterpolasyonu (yalnizca her stepTicks'te bir gonderilir) ---
         if (elapsedTicks % stepTicks == 0 || elapsedTicks >= totalTicks) {
             double fraction = Math.min(1.0, (double) elapsedTicks / totalTicks);
             Location interpolated = lerp(spawnLocation, impactLocation, fraction);
@@ -127,13 +103,11 @@ public class MeteorTask extends BukkitRunnable {
             display.setTransformation(buildTransformation(currentSpinAngle));
         }
 
-        // --- Kamera kilidi / dondurma (her tick, akicilik icin) ---
         if (settings.cameraEnabled()) {
             boolean releasePhase = (totalTicks - elapsedTicks) <= settings.releaseBeforeImpactTicks();
             updateFrozenPlayers(releasePhase);
         }
 
-        // --- Carpisma kontrolu ---
         if (elapsedTicks >= totalTicks) {
             impact();
         }
@@ -146,7 +120,6 @@ public class MeteorTask extends BukkitRunnable {
                 currentMeteorLoc.getWorld().getNearbyPlayers(currentMeteorLoc, settings.cameraRadius())
         );
 
-        // Yaricaptan cikan ya da release fazina girilen oyuncular serbest.
         for (UUID uuid : new HashSet<>(managedFrozen)) {
             Player p = plugin.getServer().getPlayer(uuid);
             boolean stillNearby = p != null && nearby.contains(p);
@@ -159,7 +132,7 @@ public class MeteorTask extends BukkitRunnable {
         }
 
         if (releasePhase) {
-            return; // yeni oyuncu dondurma, sadece serbest birakma fazindayiz
+            return;
         }
 
         for (Player p : nearby) {
@@ -167,8 +140,7 @@ public class MeteorTask extends BukkitRunnable {
                 manager.freeze(p);
                 managedFrozen.add(p.getUniqueId());
             }
-            // Her tick kamerayi zorla meteora kilitle.
-            p.lookAt(currentMeteorLoc, LookAnchor.EYES, LookAnchor.EYES);
+            p.lookAt(currentMeteorLoc, LookAnchor.EYES);
         }
     }
 
@@ -178,7 +150,6 @@ public class MeteorTask extends BukkitRunnable {
         Location impactCenter = impactLocation.clone();
         display.remove();
 
-        // Tum dondurulmus oyunculari serbest birak.
         for (UUID uuid : managedFrozen) {
             Player p = plugin.getServer().getPlayer(uuid);
             if (p != null) {
@@ -236,7 +207,6 @@ public class MeteorTask extends BukkitRunnable {
         );
     }
 
-    /** Iki noktayi lineer olarak enterpole eder (dunya ayni oldugu varsayilir). */
     private Location lerp(Location from, Location to, double fraction) {
         double x = from.getX() + (to.getX() - from.getX()) * fraction;
         double y = from.getY() + (to.getY() - from.getY()) * fraction;
@@ -244,7 +214,6 @@ public class MeteorTask extends BukkitRunnable {
         return new Location(from.getWorld(), x, y, z);
     }
 
-    /** Disaridan (komut / plugin kapanisi) zorla iptal edilmek istendiginde cagrilir. */
     public void cancelAndCleanup() {
         if (impacted) {
             return;
@@ -264,7 +233,6 @@ public class MeteorTask extends BukkitRunnable {
         try {
             cancel();
         } catch (IllegalStateException ignored) {
-            // gorev zaten calismiyor olabilir, sorun degil
         }
     }
 }
