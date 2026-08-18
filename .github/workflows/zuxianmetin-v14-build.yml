@@ -28,3 +28,4 @@ jobs:
         with:
           name: ZuxianMetin-v1.4-jar
           path: zuxianmetinv14/target/ZuxianMetin-1.4.0-Paper26.2.jar
+# build trigger
