@@ -5,6 +5,7 @@ on:
     branches: ["zuxianmetin-build"]
     paths:
       - "tools/build_zuxianmetin_v14.py"
+      - "tools/fix_zuxianmetin_v14.py"
       - ".github/workflows/zuxianmetin-v14-build.yml"
       - "zuxianmetinv13/**"
   pull_request:
@@ -22,6 +23,8 @@ jobs:
           cache: maven
       - name: Generate v1.4 source
         run: python3 tools/build_zuxianmetin_v14.py
+      - name: Apply v1.4 compile fix
+        run: python3 tools/fix_zuxianmetin_v14.py
       - name: Build with Maven
         run: mvn -B -f zuxianmetinv14/pom.xml clean package
       - name: Upload JAR
