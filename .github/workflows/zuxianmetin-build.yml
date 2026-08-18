@@ -6,6 +6,11 @@ on:
     paths:
       - "zuxianmetin/**"
       - ".github/workflows/zuxianmetin-build.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "zuxianmetin/**"
+      - ".github/workflows/zuxianmetin-build.yml"
 
 jobs:
   build:
