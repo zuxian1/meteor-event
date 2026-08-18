@@ -13,7 +13,6 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -31,7 +30,6 @@ import java.util.stream.Collectors;
 public final class ZuxianMetinPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private final Map<String, MetinNode> nodes = new LinkedHashMap<>();
     private final Map<UUID, Long> credits = new HashMap<>();
-    private final Map<UUID, Long> lastHit = new HashMap<>();
     private final Map<UUID, RewardSession> rewardSessions = new HashMap<>();
     private File dataFile;
     private YamlConfiguration data;
@@ -121,42 +119,49 @@ public final class ZuxianMetinPlugin extends JavaPlugin implements Listener, Com
     }
 
     private void resumeEventVisuals() {
-        for (MetinNode node : nodes.values()) if (node.currentHealth > 0) { spawnHologram(node); updateHologram(node); }
+        for (MetinNode node : nodes.values()) {
+            if (node.currentHealth > 0) {
+                spawnHologram(node);
+                updateHologram(node);
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBreak(BlockBreakEvent e) {
-        if (findNode(e.getBlock().getLocation()) != null) e.setCancelled(true);
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-    public void onInteract(PlayerInteractEvent e) {
-        if (e.getAction() != org.bukkit.event.block.Action.LEFT_CLICK_BLOCK || e.getClickedBlock() == null) return;
-        MetinNode node = findNode(e.getClickedBlock().getLocation());
+        MetinNode node = findNode(e.getBlock().getLocation());
         if (node == null) return;
+
+        // Hasar sadece oyuncu blogu GERCEKTEN kazmayi bitirdiginde uygulanir.
+        // Metin vanilla olarak kaybolmaz; can bitince plugin bedrock'a cevirir.
         e.setCancelled(true);
-        if (!eventActive || node.currentHealth <= 0) return;
-        long now = System.currentTimeMillis();
-        long cooldown = getConfig().getLong("metin.hit-cooldown-ms", 250L);
-        long last = lastHit.getOrDefault(e.getPlayer().getUniqueId(), 0L);
-        if (now - last < cooldown) return;
-        lastHit.put(e.getPlayer().getUniqueId(), now);
-        double damage = getConfig().getDouble("metin.damage-per-hit", 10.0);
+        e.setDropItems(false);
+        e.setExpToDrop(0);
+        if (!eventActive || node.currentHealth <= 0.0) return;
+
+        double damage = getConfig().getDouble("metin.damage-per-break",
+                getConfig().getDouble("metin.damage-per-hit", 10.0));
         node.currentHealth = Math.max(0.0, node.currentHealth - damage);
         node.damage.merge(e.getPlayer().getUniqueId(), damage, Double::sum);
-        spawnConfiguredParticle(node.location().clone().add(0.5, 0.6, 0.5), "metin.particles.hit", Particle.CRIT, 6);
+
+        Location hitLoc = node.location().clone().add(0.5, 0.65, 0.5);
+        spawnConfiguredParticle(hitLoc, "metin.particles.hit", Particle.CRIT, 10);
+        playConfiguredSound(hitLoc, "metin.sounds.mine", Sound.BLOCK_STONE_BREAK, 0.75f, 0.75f);
         updateHologram(node);
+
         if (node.currentHealth <= 0.0) breakMetin(node, e.getPlayer());
     }
 
     private void breakMetin(MetinNode node, Player killer) {
-        UUID winnerId = node.damage.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(killer.getUniqueId());
+        UUID winnerId = node.damage.entrySet().stream()
+                .max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(killer.getUniqueId());
         double winnerDamage = node.damage.getOrDefault(winnerId, 0.0);
         Player winner = Bukkit.getPlayer(winnerId);
+
         Block block = node.block();
         if (block != null) block.setType(Material.BEDROCK, false);
         removeHologram(node);
-        spawnConfiguredParticle(node.location().clone().add(0.5, 1.0, 0.5), "metin.particles.break", Particle.PORTAL, 60);
+        playMetinBreakEffects(node);
 
         int earnedCredits = randomInt(getConfig().getInt("rewards.credits.min", 150), getConfig().getInt("rewards.credits.max", 300));
         int fragments = randomInt(getConfig().getInt("rewards.fragment.min", 1), getConfig().getInt("rewards.fragment.max", 3));
@@ -166,32 +171,36 @@ public final class ZuxianMetinPlugin extends JavaPlugin implements Listener, Com
         rewardNames.add(fragments + "x Metin Parcacigi");
 
         ConfigurationSection items = getConfig().getConfigurationSection("rewards.items");
-        if (items != null) for (String key : items.getKeys(false)) {
-            ConfigurationSection sec = items.getConfigurationSection(key);
-            if (sec == null || !sec.getBoolean("enabled", true)) continue;
-            if (ThreadLocalRandom.current().nextDouble(100.0) > sec.getDouble("chance", 0.0)) continue;
-            Material mat = Material.matchMaterial(sec.getString("material", "STONE"));
-            if (mat == null) continue;
-            int amount = Math.max(1, sec.getInt("amount", 1));
-            ItemStack stack = new ItemStack(mat, amount);
-            String display = sec.getString("display-name");
-            if (display != null && !display.isBlank()) {
-                ItemMeta meta = stack.getItemMeta();
-                meta.setDisplayName(color(display));
-                stack.setItemMeta(meta);
+        if (items != null) {
+            for (String key : items.getKeys(false)) {
+                ConfigurationSection sec = items.getConfigurationSection(key);
+                if (sec == null || !sec.getBoolean("enabled", true)) continue;
+                if (ThreadLocalRandom.current().nextDouble(100.0) > sec.getDouble("chance", 0.0)) continue;
+                Material mat = Material.matchMaterial(sec.getString("material", "STONE"));
+                if (mat == null) continue;
+                int amount = Math.max(1, sec.getInt("amount", 1));
+                ItemStack stack = new ItemStack(mat, amount);
+                String display = sec.getString("display-name");
+                if (display != null && !display.isBlank()) {
+                    ItemMeta meta = stack.getItemMeta();
+                    meta.setDisplayName(color(display));
+                    stack.setItemMeta(meta);
+                }
+                itemRewards.add(stack);
+                rewardNames.add(amount + "x " + stripColor(display == null ? pretty(mat.name()) : display));
             }
-            itemRewards.add(stack);
-            rewardNames.add(amount + "x " + stripColor(display == null ? pretty(mat.name()) : display));
         }
 
         if (winner != null) {
             credits.merge(winnerId, (long) earnedCredits, Long::sum);
             deliverRewards(winner, itemRewards);
-            for (String line : getConfig().getStringList("messages.winner")) winner.sendMessage(color(line
-                    .replace("%damage%", formatNumber(winnerDamage))
-                    .replace("%credits%", String.valueOf(earnedCredits))
-                    .replace("%fragments%", String.valueOf(fragments))
-                    .replace("%items%", rewardNames.size() <= 1 ? "Yok" : String.join(", ", rewardNames.subList(1, rewardNames.size())))));
+            for (String line : getConfig().getStringList("messages.winner")) {
+                winner.sendMessage(color(line
+                        .replace("%damage%", formatNumber(winnerDamage))
+                        .replace("%credits%", String.valueOf(earnedCredits))
+                        .replace("%fragments%", String.valueOf(fragments))
+                        .replace("%items%", rewardNames.size() <= 1 ? "Yok" : String.join(", ", rewardNames.subList(1, rewardNames.size())))));
+            }
         }
 
         String broad = getConfig().getString("messages.broadcast-break", "&5Metin parcandi! &e%winner% &fodulleri kazandi.");
@@ -248,7 +257,9 @@ public final class ZuxianMetinPlugin extends JavaPlugin implements Listener, Com
             return;
         }
         if (e.getCursor() != null && !e.getCursor().getType().isAir()) e.setCancelled(true);
-        Bukkit.getScheduler().runTask(this, () -> { if (isTopEmpty(e.getView().getTopInventory())) player.closeInventory(); });
+        Bukkit.getScheduler().runTask(this, () -> {
+            if (isTopEmpty(e.getView().getTopInventory())) player.closeInventory();
+        });
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -266,10 +277,16 @@ public final class ZuxianMetinPlugin extends JavaPlugin implements Listener, Com
     }
 
     private void dropRemaining(Player player, Inventory inv) {
-        for (ItemStack item : inv.getContents()) if (item != null && !item.getType().isAir()) player.getWorld().dropItemNaturally(player.getLocation(), item);
+        for (ItemStack item : inv.getContents()) {
+            if (item != null && !item.getType().isAir()) player.getWorld().dropItemNaturally(player.getLocation(), item);
+        }
         inv.clear();
     }
-    private boolean isTopEmpty(Inventory inv) { for (ItemStack i : inv.getContents()) if (i != null && !i.getType().isAir()) return false; return true; }
+
+    private boolean isTopEmpty(Inventory inv) {
+        for (ItemStack i : inv.getContents()) if (i != null && !i.getType().isAir()) return false;
+        return true;
+    }
 
     private ItemStack createFragment(int amount) {
         Material mat = material("rewards.fragment.material", Material.ECHO_SHARD);
@@ -304,69 +321,142 @@ public final class ZuxianMetinPlugin extends JavaPlugin implements Listener, Com
                 getConfig().getString("metin.hologram.line1", "&5&lKADIM METIN"),
                 getConfig().getString("metin.hologram.line2", "&c❤ &f%health%&7/&f%max_health% HP"),
                 getConfig().getString("metin.hologram.line3", "&6⚔ &fLider: &e%leader% &7- &f%leader_damage%")
-        )).replace("%health%", formatNumber(node.currentHealth)).replace("%max_health%", formatNumber(max)).replace("%leader%", leader).replace("%leader_damage%", formatNumber(leaderDamage));
+        )).replace("%health%", formatNumber(node.currentHealth))
+                .replace("%max_health%", formatNumber(max))
+                .replace("%leader%", leader)
+                .replace("%leader_damage%", formatNumber(leaderDamage));
         node.hologram.setText(color(text));
     }
 
-    private void removeHologram(MetinNode node) { if (node.hologram != null) { node.hologram.remove(); node.hologram = null; } }
+    private void removeHologram(MetinNode node) {
+        if (node.hologram != null) {
+            node.hologram.remove();
+            node.hologram = null;
+        }
+    }
+
+    private void playMetinBreakEffects(MetinNode node) {
+        Location center = node.location().clone().add(0.5, 0.7, 0.5);
+        World world = center.getWorld();
+        if (world == null) return;
+
+        // Zarar vermeyen ama net hissedilen bir patlama efekti.
+        world.spawnParticle(Particle.EXPLOSION_EMITTER, center, 2, 0.15, 0.15, 0.15, 0.0);
+        world.spawnParticle(Particle.PORTAL, center, 140, 0.75, 0.9, 0.75, 0.35);
+        world.spawnParticle(Particle.CRIT, center, 90, 0.8, 0.8, 0.8, 0.25);
+        world.spawnParticle(Particle.SOUL_FIRE_FLAME, center, 55, 0.65, 0.8, 0.65, 0.06);
+
+        playConfiguredSound(center, "metin.sounds.break-primary", Sound.ENTITY_GENERIC_EXPLODE, 1.5f, 0.72f);
+        playConfiguredSound(center, "metin.sounds.break-secondary", Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, 1.25f, 0.85f);
+        playConfiguredSound(center, "metin.sounds.break-impact", Sound.ENTITY_WITHER_BREAK_BLOCK, 0.85f, 0.8f);
+
+        double radius = getConfig().getDouble("metin.break-effect-radius", 18.0);
+        double radiusSq = radius * radius;
+        for (Player nearby : world.getPlayers()) {
+            if (nearby.getLocation().distanceSquared(center) <= radiusSq) {
+                nearby.sendActionBar(color(getConfig().getString("metin.break-actionbar", "&5&l✦ METIN PARCALANDI! ✦")));
+            }
+        }
+    }
+
+    private void playConfiguredSound(Location loc, String path, Sound fallback, float fallbackVolume, float fallbackPitch) {
+        if (loc.getWorld() == null) return;
+        Sound sound = fallback;
+        try {
+            String raw = getConfig().getString(path, fallback.name());
+            if (raw != null) sound = Sound.valueOf(raw.toUpperCase(Locale.ROOT));
+        } catch (Exception ignored) {}
+        float volume = (float) getConfig().getDouble(path + "-volume", fallbackVolume);
+        float pitch = (float) getConfig().getDouble(path + "-pitch", fallbackPitch);
+        loc.getWorld().playSound(loc, sound, volume, pitch);
+    }
 
     private void spawnConfiguredParticle(Location loc, String path, Particle fallback, int count) {
         Particle particle = fallback;
-        try { particle = Particle.valueOf(getConfig().getString(path, fallback.name()).toUpperCase(Locale.ROOT)); } catch (Exception ignored) {}
+        try {
+            particle = Particle.valueOf(getConfig().getString(path, fallback.name()).toUpperCase(Locale.ROOT));
+        } catch (Exception ignored) {}
         if (loc.getWorld() != null) loc.getWorld().spawnParticle(particle, loc, count, 0.35, 0.35, 0.35, 0.03);
     }
 
+    private Material material(String path, Material fallback) {
+        Material mat = Material.matchMaterial(getConfig().getString(path, fallback.name()));
+        return mat == null ? fallback : mat;
+    }
+
     private MetinNode findNode(Location loc) {
-        if (loc.getWorld() == null) return null;
-        for (MetinNode node : nodes.values()) if (node.world.equals(loc.getWorld().getName()) && node.x == loc.getBlockX() && node.y == loc.getBlockY() && node.z == loc.getBlockZ()) return node;
+        for (MetinNode node : nodes.values()) {
+            if (node.world.equals(loc.getWorld().getName()) && node.x == loc.getBlockX() && node.y == loc.getBlockY() && node.z == loc.getBlockZ()) return node;
+        }
         return null;
     }
 
     private void loadData() {
         credits.clear();
-        ConfigurationSection c = data.getConfigurationSection("credits");
-        if (c != null) for (String key : c.getKeys(false)) try { credits.put(UUID.fromString(key), c.getLong(key)); } catch (IllegalArgumentException ignored) {}
         nodes.clear();
-        ConfigurationSection n = data.getConfigurationSection("metins");
+        eventActive = data.getBoolean("event.active", false);
+        nextEventAt = data.getLong("event.next", 0L);
+        eventEndAt = data.getLong("event.end", 0L);
+        ConfigurationSection c = data.getConfigurationSection("credits");
+        if (c != null) for (String key : c.getKeys(false)) {
+            try { credits.put(UUID.fromString(key), c.getLong(key)); } catch (IllegalArgumentException ignored) {}
+        }
+        ConfigurationSection n = data.getConfigurationSection("nodes");
         if (n != null) for (String id : n.getKeys(false)) {
             ConfigurationSection s = n.getConfigurationSection(id);
             if (s == null) continue;
             MetinNode node = new MetinNode(id, s.getString("world", "world"), s.getInt("x"), s.getInt("y"), s.getInt("z"));
             node.currentHealth = s.getDouble("health", getConfig().getDouble("metin.max-health", 1000.0));
             ConfigurationSection dmg = s.getConfigurationSection("damage");
-            if (dmg != null) for (String key : dmg.getKeys(false)) try { node.damage.put(UUID.fromString(key), dmg.getDouble(key)); } catch (IllegalArgumentException ignored) {}
+            if (dmg != null) for (String key : dmg.getKeys(false)) {
+                try { node.damage.put(UUID.fromString(key), dmg.getDouble(key)); } catch (IllegalArgumentException ignored) {}
+            }
             nodes.put(id.toLowerCase(Locale.ROOT), node);
         }
-        eventActive = data.getBoolean("event.active", false);
-        nextEventAt = data.getLong("event.next-at", 0L);
-        eventEndAt = data.getLong("event.end-at", 0L);
     }
 
     private void saveData() {
+        data.set("event.active", eventActive);
+        data.set("event.next", nextEventAt);
+        data.set("event.end", eventEndAt);
         data.set("credits", null);
         for (Map.Entry<UUID, Long> e : credits.entrySet()) data.set("credits." + e.getKey(), e.getValue());
-        data.set("metins", null);
+        data.set("nodes", null);
         for (MetinNode node : nodes.values()) {
-            String base = "metins." + node.id;
-            data.set(base + ".world", node.world); data.set(base + ".x", node.x); data.set(base + ".y", node.y); data.set(base + ".z", node.z); data.set(base + ".health", node.currentHealth);
+            String base = "nodes." + node.id;
+            data.set(base + ".world", node.world);
+            data.set(base + ".x", node.x);
+            data.set(base + ".y", node.y);
+            data.set(base + ".z", node.z);
+            data.set(base + ".health", node.currentHealth);
             for (Map.Entry<UUID, Double> d : node.damage.entrySet()) data.set(base + ".damage." + d.getKey(), d.getValue());
         }
-        data.set("event.active", eventActive); data.set("event.next-at", nextEventAt); data.set("event.end-at", eventEndAt);
         try { data.save(dataFile); } catch (IOException ex) { getLogger().severe("data.yml kaydedilemedi: " + ex.getMessage()); }
     }
 
     @Override public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        if (args.length == 0) { sender.sendMessage(color("&5&lZuxianMetin &7| /metin add <id>, remove <id>, list, start, stop, next, credits, reload")); return true; }
+        if (args.length == 0) {
+            sender.sendMessage(color("&5&lZuxianMetin &7- &f/metin add <id>, remove <id>, list, start, stop, credits, next, reload"));
+            return true;
+        }
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (sub.equals("credits")) {
-            if (!(sender instanceof Player p)) { sender.sendMessage("Players only"); return true; }
-            sender.sendMessage(color(msg("credits").replace("%credits%", String.valueOf(getCredits(p.getUniqueId()))))); return true;
+            if (!(sender instanceof Player p)) return true;
+            sender.sendMessage(color(getConfig().getString("messages.credits", "&fMetin Kredin: &d%credits%").replace("%credits%", String.valueOf(getCredits(p.getUniqueId())))));
+            return true;
         }
-        if (sub.equals("next")) { sender.sendMessage(color(msg("next").replace("%time%", eventActive ? "Event aktif" : formatDuration(Math.max(0, nextEventAt - System.currentTimeMillis()))))); return true; }
-        if (!sender.hasPermission("zuxianmetin.admin")) { sender.sendMessage(color(msg("no-permission"))); return true; }
+        if (sub.equals("next")) {
+            long remain = eventActive ? Math.max(0, eventEndAt - System.currentTimeMillis()) : Math.max(0, nextEventAt - System.currentTimeMillis());
+            sender.sendMessage(color(getConfig().getString("messages.next", "&fSonraki Metin Eventi: &d%time%").replace("%time%", formatDuration(remain))));
+            return true;
+        }
+        if (!sender.hasPermission("zuxianmetin.admin")) {
+            sender.sendMessage(color(getConfig().getString("messages.no-permission", "&cYetkin yok.")));
+            return true;
+        }
         switch (sub) {
             case "add" -> {
-                if (!(sender instanceof Player p) || args.length < 2) { sender.sendMessage("/metin add <id>"); return true; }
+                if (!(sender instanceof Player p) || args.length < 2) return true;
                 Block target = p.getTargetBlockExact(8);
                 if (target == null) { p.sendMessage(color("&cBir bloga bak.")); return true; }
                 String id = args[1].toLowerCase(Locale.ROOT);
@@ -374,22 +464,33 @@ public final class ZuxianMetinPlugin extends JavaPlugin implements Listener, Com
                 node.currentHealth = getConfig().getDouble("metin.max-health", 1000.0);
                 nodes.put(id, node);
                 target.setType(material("metin.inactive-material", Material.BEDROCK), false);
-                sender.sendMessage(color(msg("added").replace("%id%", id))); saveData();
+                saveData();
+                p.sendMessage(color(getConfig().getString("messages.added", "&a%id% metini kaydedildi.").replace("%id%", id)));
             }
             case "remove" -> {
-                if (args.length < 2) { sender.sendMessage("/metin remove <id>"); return true; }
-                MetinNode removed = nodes.remove(args[1].toLowerCase(Locale.ROOT)); if (removed != null) removeHologram(removed);
-                sender.sendMessage(color(msg("removed").replace("%id%", args[1]))); saveData();
+                if (args.length < 2) return true;
+                MetinNode node = nodes.remove(args[1].toLowerCase(Locale.ROOT));
+                if (node != null) removeHologram(node);
+                saveData();
+                sender.sendMessage(color(getConfig().getString("messages.removed", "&a%id% metini silindi.").replace("%id%", args[1])));
             }
             case "list" -> sender.sendMessage(color("&fMetinler: &d" + String.join(", ", nodes.keySet())));
-            case "start" -> { if (eventActive) sender.sendMessage(color(msg("already-active"))); else { startEvent(true); sender.sendMessage(color(msg("event-started-admin"))); } }
-            case "stop" -> { if (!eventActive) sender.sendMessage(color(msg("not-active"))); else { stopEvent(true); sender.sendMessage(color(msg("event-stopped-admin"))); } }
-            case "reload" -> { reloadConfig(); sender.sendMessage(color("&aConfig yenilendi.")); }
-            case "givecredits" -> {
-                if (args.length < 3) { sender.sendMessage("/metin givecredits <oyuncu> <miktar>"); return true; }
-                OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
-                try { long amount = Long.parseLong(args[2]); credits.merge(target.getUniqueId(), amount, Long::sum); sender.sendMessage(color("&aKredi eklendi.")); saveData(); }
-                catch (NumberFormatException ex) { sender.sendMessage(color("&cMiktar sayi olmali.")); }
+            case "start" -> {
+                if (eventActive) sender.sendMessage(color(getConfig().getString("messages.already-active", "&cEvent zaten aktif.")));
+                else { startEvent(true); sender.sendMessage(color(getConfig().getString("messages.event-started-admin", "&aMetin eventi baslatildi."))); }
+            }
+            case "stop" -> {
+                if (!eventActive) sender.sendMessage(color(getConfig().getString("messages.not-active", "&cEvent aktif degil.")));
+                else { stopEvent(false); nextEventAt = System.currentTimeMillis() + intervalMillis(); saveData(); sender.sendMessage(color(getConfig().getString("messages.event-stopped-admin", "&aMetin eventi durduruldu."))); }
+            }
+            case "reload" -> { reloadConfig(); sender.sendMessage(color("&aZuxianMetin config yenilendi.")); }
+            case "setcredits" -> {
+                if (args.length < 3) return true;
+                Player target = Bukkit.getPlayerExact(args[1]);
+                if (target == null) return true;
+                credits.put(target.getUniqueId(), Long.parseLong(args[2]));
+                saveData();
+                sender.sendMessage(color("&aKredi ayarlandi."));
             }
             default -> sender.sendMessage(color("&cBilinmeyen alt komut."));
         }
@@ -397,41 +498,58 @@ public final class ZuxianMetinPlugin extends JavaPlugin implements Listener, Com
     }
 
     @Override public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (args.length == 1) return List.of("add", "remove", "list", "start", "stop", "next", "credits", "reload", "givecredits").stream().filter(s -> s.startsWith(args[0].toLowerCase(Locale.ROOT))).toList();
+        if (args.length == 1) return Arrays.asList("add", "remove", "list", "start", "stop", "credits", "next", "reload", "setcredits");
         if (args.length == 2 && args[0].equalsIgnoreCase("remove")) return new ArrayList<>(nodes.keySet());
         return Collections.emptyList();
     }
 
-    private String msg(String key) { return getConfig().getString("messages." + key, ""); }
-    private void sendLines(CommandSender sender, List<String> lines) { for (String line : lines) sender.sendMessage(color(line)); }
-    private Material material(String path, Material fallback) { Material m = Material.matchMaterial(getConfig().getString(path, fallback.name())); return m == null ? fallback : m; }
-    private String color(String s) { return ChatColor.translateAlternateColorCodes('&', s == null ? "" : s); }
+    private int randomInt(int min, int max) {
+        if (max < min) { int t = min; min = max; max = t; }
+        return ThreadLocalRandom.current().nextInt(min, max + 1);
+    }
+
+    private String formatDuration(long millis) {
+        long total = Math.max(0, millis / 1000L);
+        long h = total / 3600; long m = (total % 3600) / 60; long s = total % 60;
+        if (h > 0) return h + "s " + m + "dk";
+        if (m > 0) return m + "dk " + s + "sn";
+        return s + "sn";
+    }
+
+    private String formatNumber(double d) { return Math.abs(d - Math.rint(d)) < 0.0001 ? String.valueOf((long) d) : String.format(Locale.US, "%.1f", d); }
+    private String pretty(String s) { return Arrays.stream(s.toLowerCase(Locale.ROOT).split("_")).map(x -> x.isEmpty() ? x : Character.toUpperCase(x.charAt(0)) + x.substring(1)).collect(Collectors.joining(" ")); }
     private String stripColor(String s) { return ChatColor.stripColor(color(s)); }
-    private static int randomInt(int min, int max) { if (max < min) { int t=min; min=max; max=t; } return ThreadLocalRandom.current().nextInt(min, max + 1); }
-    private static String pretty(String s) { return Arrays.stream(s.toLowerCase(Locale.ROOT).split("_")).map(w -> Character.toUpperCase(w.charAt(0)) + w.substring(1)).collect(Collectors.joining(" ")); }
-    private static String formatNumber(double d) { return Math.abs(d - Math.rint(d)) < 0.001 ? String.valueOf((long)Math.rint(d)) : String.format(Locale.US, "%.1f", d); }
-    public static String formatDuration(long ms) { long total=Math.max(0,ms/1000L), h=total/3600L, m=(total%3600L)/60L, s=total%60L; return h>0?h+"s "+m+"dk":m>0?m+"dk "+s+"sn":s+"sn"; }
+    private String color(String s) { return s == null ? "" : ChatColor.translateAlternateColorCodes('&', s); }
+    private void sendLines(Player p, List<String> lines) { for (String s : lines) p.sendMessage(color(s)); }
+
+    private static final class RewardHolder implements InventoryHolder {
+        private Inventory inventory;
+        @Override public Inventory getInventory() { return inventory; }
+    }
+    private record RewardSession(Player player, Inventory inventory) {}
 
     private final class MetinNode {
-        final String id, world; final int x,y,z; double currentHealth; final Map<UUID,Double> damage=new HashMap<>(); TextDisplay hologram;
-        MetinNode(String id,String world,int x,int y,int z){this.id=id;this.world=world;this.x=x;this.y=y;this.z=z;}
-        Location location(){World w=Bukkit.getWorld(world);return new Location(w,x,y,z);}
-        Block block(){World w=Bukkit.getWorld(world);return w==null?null:w.getBlockAt(x,y,z);}
+        final String id, world;
+        final int x, y, z;
+        double currentHealth;
+        final Map<UUID, Double> damage = new HashMap<>();
+        TextDisplay hologram;
+        MetinNode(String id, String world, int x, int y, int z) { this.id = id; this.world = world; this.x = x; this.y = y; this.z = z; }
+        Location location() { return new Location(Bukkit.getWorld(world), x, y, z); }
+        Block block() { World w = Bukkit.getWorld(world); return w == null ? null : w.getBlockAt(x, y, z); }
     }
-    private static final class RewardHolder implements InventoryHolder { Inventory inventory; @Override public @NotNull Inventory getInventory(){return inventory;} }
-    private record RewardSession(Player player, Inventory inventory) {}
 
     private static final class MetinExpansion extends PlaceholderExpansion {
         private final ZuxianMetinPlugin plugin;
-        MetinExpansion(ZuxianMetinPlugin plugin){this.plugin=plugin;}
-        @Override public @NotNull String getIdentifier(){return "zuxianmetin";}
-        @Override public @NotNull String getAuthor(){return "zuxian";}
-        @Override public @NotNull String getVersion(){return plugin.getDescription().getVersion();}
-        @Override public boolean persist(){return true;}
-        @Override public String onRequest(OfflinePlayer player,@NotNull String params){
-            if(params.equalsIgnoreCase("credits")) return player==null?"0":String.valueOf(plugin.getCredits(player.getUniqueId()));
-            if(params.equalsIgnoreCase("active")) return plugin.isEventActive()?"true":"false";
-            if(params.equalsIgnoreCase("next")) return plugin.isEventActive()?"Aktif":formatDuration(Math.max(0,plugin.getNextEventAt()-System.currentTimeMillis()));
+        MetinExpansion(ZuxianMetinPlugin plugin) { this.plugin = plugin; }
+        @Override public @NotNull String getIdentifier() { return "zuxianmetin"; }
+        @Override public @NotNull String getAuthor() { return "zuxian"; }
+        @Override public @NotNull String getVersion() { return plugin.getDescription().getVersion(); }
+        @Override public boolean persist() { return true; }
+        @Override public String onPlaceholderRequest(Player player, @NotNull String params) {
+            if (params.equalsIgnoreCase("credits")) return player == null ? "0" : String.valueOf(plugin.getCredits(player.getUniqueId()));
+            if (params.equalsIgnoreCase("active")) return plugin.isEventActive() ? "AKTIF" : "PASIF";
+            if (params.equalsIgnoreCase("next")) return plugin.formatDuration(Math.max(0, plugin.getNextEventAt() - System.currentTimeMillis()));
             return null;
         }
     }
