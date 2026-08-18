@@ -7,6 +7,7 @@ on:
       - "tools/build_zuxianmetin_v14.py"
       - ".github/workflows/zuxianmetin-v14-build.yml"
       - "zuxianmetinv13/**"
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -28,4 +29,3 @@ jobs:
         with:
           name: ZuxianMetin-v1.4-jar
           path: zuxianmetinv14/target/ZuxianMetin-1.4.0-Paper26.2.jar
-# build trigger
