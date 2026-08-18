@@ -1,0 +1,13 @@
+name: ZuxianMetin
+version: 1.0.0
+main: com.zuxian.metin.ZuxianMetinPlugin
+api-version: '26.2'
+author: zuxian
+softdepend: [PlaceholderAPI]
+commands:
+  metin:
+    description: Metin event yonetimi
+    usage: /metin
+permissions:
+  zuxianmetin.admin:
+    default: op

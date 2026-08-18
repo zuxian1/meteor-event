@@ -1,0 +1,97 @@
+event:
+  interval-hours: 4
+  duration-minutes: 60
+  warp-command: "/warp metin"
+  title: "&5&lMETIN EVENTI BASLADI!"
+  subtitle: "&fGitmek icin &d/warp metin"
+  start-message:
+    - "&8&m--------------------------------"
+    - "&5&lMETIN EVENTI BASLADI!"
+    - "&fMetinleri kir, odulleri kap."
+    - "&fGitmek icin: &d/warp metin"
+    - "&8&m--------------------------------"
+  end-message:
+    - "&8&m--------------------------------"
+    - "&c&lMETIN EVENTI SONA ERDI!"
+    - "&7Kalan metinler pasif hale getirildi."
+    - "&8&m--------------------------------"
+metin:
+  active-material: CRYING_OBSIDIAN
+  inactive-material: BEDROCK
+  max-health: 1000.0
+  # Sol tik basina degil, crying obsidian kazma islemi tamamlandiginda hasar verir.
+  damage-per-break: 10.0
+  hologram-height: 1.6
+  hologram:
+    line1: "&5&lKADIM METIN"
+    line2: "&c❤ &f%health%&7/&f%max_health% HP"
+    line3: "&6⚔ &fLider: &e%leader% &7- &f%leader_damage%"
+  particles:
+    hit: CRIT
+  sounds:
+    mine: BLOCK_STONE_BREAK
+    mine-volume: 0.75
+    mine-pitch: 0.75
+    break-primary: ENTITY_GENERIC_EXPLODE
+    break-primary-volume: 1.5
+    break-primary-pitch: 0.72
+    break-secondary: BLOCK_RESPAWN_ANCHOR_DEPLETE
+    break-secondary-volume: 1.25
+    break-secondary-pitch: 0.85
+    break-impact: ENTITY_WITHER_BREAK_BLOCK
+    break-impact-volume: 0.85
+    break-impact-pitch: 0.8
+  break-effect-radius: 18.0
+  break-actionbar: "&5&l✦ METIN PARCALANDI! ✦"
+rewards:
+  credits:
+    min: 150
+    max: 300
+  fragment:
+    material: ECHO_SHARD
+    name: "&d&lMetin Parcacigi"
+    lore:
+      - "&7Kadim metinlerden elde edilir."
+      - "&7Takaslarda kullanilir."
+    min: 1
+    max: 3
+  items:
+    diamond:
+      enabled: true
+      material: DIAMOND
+      amount: 2
+      chance: 20.0
+      display-name: "&bElmas"
+    netherite_ingot:
+      enabled: true
+      material: NETHERITE_INGOT
+      amount: 1
+      chance: 3.0
+      display-name: "&8Netherit Kulcesi"
+reward-gui:
+  title: "&cEnvanterin Dolu! &7- Item Bosalt"
+  size: 54
+  warning-message:
+    - "&c&lENVANTERIN DOLU!"
+    - "&7Odullerin gecici sandiga yerlestirildi."
+    - "&7GUI'yi kapatirsan kalan itemler yere duser."
+messages:
+  no-permission: "&cYetkin yok."
+  added: "&a%id% metini kaydedildi."
+  removed: "&a%id% metini silindi."
+  already-active: "&cEvent zaten aktif."
+  not-active: "&cEvent aktif degil."
+  event-started-admin: "&aMetin eventi baslatildi."
+  event-stopped-admin: "&aMetin eventi durduruldu."
+  credits: "&fMetin Kredin: &d%credits%"
+  next: "&fSonraki Metin Eventi: &d%time%"
+  winner:
+    - "&8&m--------------------------------"
+    - "&5&lMETIN PARCALANDI!"
+    - "&fMetine en fazla hasari sen verdin!"
+    - "&fVerdigin Hasar: &c%damage%"
+    - "&fKazandigin Kredi: &d+%credits%"
+    - "&fMetin Parcacigi: &d+%fragments%"
+    - "&fEk Oduller: &e%items%"
+    - "&8&m--------------------------------"
+  broadcast-break: "&5Metin parcandi! &e%winner% &fen fazla hasari vererek odulleri kazandi. &7(Son vurus: %killer%)"

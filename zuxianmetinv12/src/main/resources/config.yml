@@ -1,0 +1,121 @@
+event:
+  duration-minutes: 60
+  timezone: "Europe/Istanbul"
+  schedule:
+    monday: []
+    tuesday: []
+    wednesday: []
+    thursday: []
+    friday: []
+    saturday: []
+    sunday: []
+  title: "&5&lMETIN EVENTI BASLADI!"
+  subtitle: "&fGitmek icin &d/warp metin"
+  start-message:
+    - "&8&m--------------------------------"
+    - "&5&lMETIN EVENTI BASLADI!"
+    - "&fMetinleri kir, muhafizlari kes ve odulleri kap."
+    - "&fGitmek icin: &d/warp metin"
+    - "&8&m--------------------------------"
+  end-message:
+    - "&8&m--------------------------------"
+    - "&c&lMETIN EVENTI SONA ERDI!"
+    - "&7Kalan metinler pasif hale getirildi."
+    - "&8&m--------------------------------"
+metin:
+  active-material: CRYING_OBSIDIAN
+  inactive-material: BEDROCK
+  max-health: 1000.0
+  damage-per-break: 10.0
+  hologram-height: 1.6
+  hologram:
+    line1: "&5&lKADIM METIN"
+    line2: "&c❤ &f%health%&7/&f%max_health% HP"
+    line3: "&6⚔ &fLider: &e%leader% &7- &f%leader_damage%"
+    guardians: "&5⚔ &cMuhafizlari oldur!"
+  particles:
+    hit: CRIT
+  sounds:
+    mine: BLOCK_STONE_BREAK
+    break-primary: ENTITY_GENERIC_EXPLODE
+    break-secondary: BLOCK_RESPAWN_ANCHOR_DEPLETE
+    break-impact: ENTITY_WITHER_BREAK_BLOCK
+    respawn-primary: BLOCK_RESPAWN_ANCHOR_CHARGE
+    respawn-secondary: BLOCK_BEACON_ACTIVATE
+  break-effect-radius: 18.0
+  break-actionbar: "&5&l✦ METIN PARCALANDI! ✦"
+guardians:
+  enabled: true
+  every-health: 300.0
+  count: 2
+  type: HUSK
+  name: "&5&lMetin Muhafizi"
+  health: 40.0
+  attack-damage: 6.0
+  spawn-radius: 3.0
+  message-radius: 18.0
+  spawn-sound: ENTITY_WITHER_SPAWN
+  cleared-sound: BLOCK_BEACON_ACTIVATE
+  spawn-actionbar: "&5&lMUHAFIZLAR ORTAYA CIKTI! &fMetine devam etmek icin onlari oldur."
+  blocked-actionbar: "&cOnce Metin Muhafizlarini oldurmelisin!"
+  cleared-actionbar: "&aMuhafizlar yenildi! &fMetini kazmaya devam edebilirsin."
+rewards:
+  ranks:
+    1:
+      credits: {min: 250, max: 400}
+      fragments: {min: 2, max: 4}
+      item-chance-multiplier: 1.0
+    2:
+      credits: {min: 140, max: 240}
+      fragments: {min: 1, max: 2}
+      item-chance-multiplier: 0.65
+    3:
+      credits: {min: 80, max: 150}
+      fragments: {min: 1, max: 1}
+      item-chance-multiplier: 0.35
+  fragment:
+    material: ECHO_SHARD
+    name: "&d&lMetin Parcacigi"
+    lore:
+      - "&7Kadim metinlerden elde edilir."
+      - "&7Takaslarda kullanilir."
+  items:
+    diamond:
+      enabled: true
+      material: DIAMOND
+      amount: 2
+      chance: 20.0
+      display-name: "&bElmas"
+    netherite_ingot:
+      enabled: true
+      material: NETHERITE_INGOT
+      amount: 1
+      chance: 3.0
+      display-name: "&8Netherit Kulcesi"
+reward-gui:
+  title: "&cEnvanterin Dolu! &7- Item Bosalt"
+  size: 54
+  warning-message:
+    - "&c&lENVANTERIN DOLU!"
+    - "&7Odullerin gecici sandiga yerlestirildi."
+    - "&7GUI'yi kapatirsan kalan itemler yere duser."
+messages:
+  no-permission: "&cYetkin yok."
+  added: "&a%id% metini kaydedildi."
+  removed: "&a%id% metini silindi."
+  already-active: "&cEvent zaten aktif."
+  not-active: "&cEvent aktif degil."
+  event-started-admin: "&aMetin eventi baslatildi."
+  event-stopped-admin: "&aMetin eventi durduruldu."
+  credits: "&fMetin Kredin: &d%credits%"
+  next: "&fSonraki Metin Eventi: &d%time%"
+  active-remaining: "&fMetin Eventinin bitmesine: &d%time%"
+  rank-reward:
+    - "&8&m--------------------------------"
+    - "&5&lMETIN ODULU &7- &e#%rank%"
+    - "&fVerdigin Hasar: &c%damage%"
+    - "&fKazandigin Kredi: &d+%credits%"
+    - "&fMetin Parcacigi: &d+%fragments%"
+    - "&fEk Oduller: &e%items%"
+    - "&8&m--------------------------------"
+  broadcast-break: "&5Metin parcandi! &e%winner% &fen fazla hasari verdi. &7(Son vurus: %killer%)"

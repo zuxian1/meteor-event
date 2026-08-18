@@ -1,0 +1,33 @@
+name: Build ZuxianMetin v1.3
+
+on:
+  push:
+    branches: ["zuxianmetin-build"]
+    paths:
+      - "zuxianmetinv13/**"
+      - ".github/workflows/zuxianmetin-v13-build.yml"
+  pull_request:
+    paths:
+      - "zuxianmetinv13/**"
+      - ".github/workflows/zuxianmetin-v13-build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: zuxianmetinv13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Build with Maven
+        run: mvn -B clean package
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZuxianMetin-v1.3-jar
+          path: zuxianmetinv13/target/ZuxianMetin-1.3.0-Paper26.2.jar
