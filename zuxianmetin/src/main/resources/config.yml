@@ -19,8 +19,8 @@ metin:
   active-material: CRYING_OBSIDIAN
   inactive-material: BEDROCK
   max-health: 1000.0
-  damage-per-hit: 10.0
-  hit-cooldown-ms: 250
+  # Sol tik basina degil, crying obsidian kazma islemi tamamlandiginda hasar verir.
+  damage-per-break: 10.0
   hologram-height: 1.6
   hologram:
     line1: "&5&lKADIM METIN"
@@ -28,7 +28,21 @@ metin:
     line3: "&6⚔ &fLider: &e%leader% &7- &f%leader_damage%"
   particles:
     hit: CRIT
-    break: PORTAL
+  sounds:
+    mine: BLOCK_STONE_BREAK
+    mine-volume: 0.75
+    mine-pitch: 0.75
+    break-primary: ENTITY_GENERIC_EXPLODE
+    break-primary-volume: 1.5
+    break-primary-pitch: 0.72
+    break-secondary: BLOCK_RESPAWN_ANCHOR_DEPLETE
+    break-secondary-volume: 1.25
+    break-secondary-pitch: 0.85
+    break-impact: ENTITY_WITHER_BREAK_BLOCK
+    break-impact-volume: 0.85
+    break-impact-pitch: 0.8
+  break-effect-radius: 18.0
+  break-actionbar: "&5&l✦ METIN PARCALANDI! ✦"
 rewards:
   credits:
     min: 150
