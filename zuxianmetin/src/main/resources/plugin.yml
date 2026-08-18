@@ -8,7 +8,6 @@ commands:
   metin:
     description: Metin event yonetimi
     usage: /metin
-    permission: zuxianmetin.admin
 permissions:
   zuxianmetin.admin:
     default: op
